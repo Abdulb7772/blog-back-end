@@ -27,7 +27,7 @@ export const createBlog = async (req, res) => {
 
 export const getBlogs = async (req, res) => {
   try {
-    const { search, category } = req.query;
+    const { search, category, page = 1, limit = 10 } = req.query;
     
     // Build filter object
     const filter = {};
@@ -46,8 +46,30 @@ export const getBlogs = async (req, res) => {
       filter.category = category;
     }
     
-    const blogs = await Blog.find(filter).populate('category', 'title').sort({ createdAt: -1 })
-    res.json(blogs)
+    // Calculate pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+    
+    // Get total count for pagination
+    const total = await Blog.countDocuments(filter);
+    
+    // Fetch paginated blogs
+    const blogs = await Blog.find(filter)
+      .populate('category', 'title')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+    
+    res.json({
+      blogs,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum)
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch blogs' })
   }

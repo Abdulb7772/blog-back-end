@@ -32,7 +32,7 @@ export const createCategory = async (req, res) => {
 
 export const getCategories = async (req, res) => {
   try {
-    const { search, status } = req.query;
+    const { search, status, page = 1, limit = 10 } = req.query;
     
     // Build filter object
     const filter = {};
@@ -50,8 +50,29 @@ export const getCategories = async (req, res) => {
       filter.status = status;
     }
     
-    const categories = await Category.find(filter).sort({ createdAt: -1 })
-    res.json(categories)
+    // Calculate pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+    
+    // Get total count for pagination
+    const total = await Category.countDocuments(filter);
+    
+    // Fetch paginated categories
+    const categories = await Category.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+    
+    res.json({
+      categories,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum)
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch categories' })
   }
